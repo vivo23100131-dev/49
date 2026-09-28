@@ -1,0 +1,144 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Ultimate Menu (Lock Head + Speed + Jump)",
+   LoadingTitle = "Rayfield Interface",
+   LoadingSubtitle = "Custom Script",
+   ConfigurationSaving = {
+      Enabled = false,
+   },
+   KeySystem = false,
+})
+
+local Tab = Window:CreateTab("Main", 4483362458)
+
+-- ตัวแปรควบคุมค่าต่างๆ
+local AimbotEnabled = false
+local CustomSpeed = 16
+local CustomJump = 50
+local SpeedEnabled = false
+local JumpEnabled = false
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- 1. ระบบล็อกหัวออโต้
+Tab:CreateToggle({
+   Name = "ล็อกหัวออโต้ (Closest Player)",
+   CurrentValue = false,
+   Flag = "AutoLockToggle",
+   Callback = function(Value)
+      AimbotEnabled = Value
+   end,
+})
+
+Tab:CreateDivider()
+
+-- 2. ระบบวิ่งไว
+Tab:CreateToggle({
+   Name = "เปิดใช้งานวิ่งไว",
+   CurrentValue = false,
+   Flag = "SpeedToggle",
+   Callback = function(Value)
+      SpeedEnabled = Value
+      if not Value and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+         LocalPlayer.Character.Humanoid.WalkSpeed = 16 -- คืนค่าปกติ
+      end
+   end,
+})
+
+Tab:CreateSlider({
+   Name = "ปรับความเร็วในการวิ่ง (WalkSpeed)",
+   Range = {16, 300},
+   Increment = 1,
+   Suffix = "Speed",
+   CurrentValue = 16,
+   Flag = "SpeedSlider",
+   Callback = function(Value)
+      CustomSpeed = Value
+   end,
+})
+
+Tab:CreateDivider()
+
+-- 3. ระบบกระโดดสูง
+Tab:CreateToggle({
+   Name = "เปิดใช้งานกระโดดสูง",
+   CurrentValue = false,
+   Flag = "JumpToggle",
+   Callback = function(Value)
+      JumpEnabled = Value
+      local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+      if humanoid then
+         if Value then
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = CustomJump
+         else
+            humanoid.JumpPower = 50 -- คืนค่าปกติ
+         end
+      end
+   end,
+})
+
+Tab:CreateSlider({
+   Name = "ปรับความสูงในการกระโดด (JumpPower)",
+   Range = {50, 300},
+   Increment = 5,
+   Suffix = "Power",
+   CurrentValue = 50,
+   Flag = "JumpSlider",
+   Callback = function(Value)
+      CustomJump = Value
+      local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+      if JumpEnabled and humanoid then
+         humanoid.UseJumpPower = true
+         humanoid.JumpPower = Value
+      end
+   end,
+})
+
+-- ฟังก์ชันหาผู้เล่นใกล้ที่สุด
+local function getClosestPlayer()
+   local closestPlayer = nil
+   local shortestDistance = math.huge
+   
+   for _, player in ipairs(Players:GetPlayers()) do
+      if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+         local head = player.Character.Head
+         local distance = (Camera.CFrame.Position - head.Position).Magnitude
+         if distance < shortestDistance then
+            shortestDistance = distance
+            closestPlayer = player
+         end
+      end
+   end
+   
+   return closestPlayer
+end
+
+-- ลูปการทำงานเบื้องหลัง
+RunService.RenderStepped:Connect(function()
+   -- ล็อกหัว
+   if AimbotEnabled then
+      local target = getClosestPlayer()
+      if target and target.Character and target.Character:FindFirstChild("Head") then
+         local head = target.Character.Head
+         Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+      end
+   end
+
+   -- อัปเดตความเร็วและกระโดดตลอดเวลา (ป้องกันเกมรีเซ็ตค่า)
+   local character = LocalPlayer.Character
+   if character and character:FindFirstChild("Humanoid") then
+      local humanoid = character.Humanoid
+      if SpeedEnabled then
+         humanoid.WalkSpeed = CustomSpeed
+      end
+      if JumpEnabled then
+         humanoid.UseJumpPower = true
+         humanoid.JumpPower = CustomJump
+      end
+   end
+end)
